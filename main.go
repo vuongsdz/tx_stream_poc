@@ -119,7 +119,7 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 	subscription.Blocks["blocks_sub"] = &pb.SubscribeRequestFilterBlocks{
 		AccountInclude: []string{"pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"},
 	}
-	subscription.Commitment = new(pb.CommitmentLevel_PROCESSED)
+	subscription.Commitment = new(pb.CommitmentLevel_CONFIRMED)
 
 	subscriptionJson, err := json.Marshal(&subscription)
 	if err != nil {
