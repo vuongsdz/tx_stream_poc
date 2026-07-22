@@ -105,20 +105,21 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 	}
 	if txService == nil || mqttService == nil {
 	}
-	//atlService, err := NewATLService("https://patient-crimson-moon.solana-mainnet.quiknode.pro/")
-	//if err != nil {
-	//	panic(err)
-	//}
 
 	client := pb.NewGeyserClient(conn)
 	ctx := context.Background()
 
 	var subscription pb.SubscribeRequest
 	subscription = pb.SubscribeRequest{}
-	subscription.Transactions = make(map[string]*pb.SubscribeRequestFilterTransactions)
-	subscription.Transactions["transactions_sub"] = &pb.SubscribeRequestFilterTransactions{
+	//subscription.Transactions = make(map[string]*pb.SubscribeRequestFilterTransactions)
+	//subscription.Transactions["transactions_sub"] = &pb.SubscribeRequestFilterTransactions{
+	//	AccountInclude: []string{"pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"},
+	//}
+	subscription.Blocks = make(map[string]*pb.SubscribeRequestFilterBlocks)
+	subscription.Blocks["blocks_sub"] = &pb.SubscribeRequestFilterBlocks{
 		AccountInclude: []string{"pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"},
 	}
+	subscription.Commitment = new(pb.CommitmentLevel_CONFIRMED)
 
 	subscriptionJson, err := json.Marshal(&subscription)
 	if err != nil {
@@ -141,41 +142,37 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 		log.Fatalf("%v", err)
 	}
 
-	slot := uint64(1)
-
 	for {
 		update, err := stream.Recv()
 		if err != nil {
 			log.Fatalf("stream error: %v", err)
 		}
 
-		tx := update.GetTransaction()
-		if tx == nil {
+		block := update.GetBlock()
+		if block == nil {
 			// Could be a ping/pong keepalive or another update type we
 			// didn't subscribe to; ignore.
 			continue
 		}
 
-		info := tx.GetTransaction()
-		if info == nil {
-			continue
-		}
+		//info := tx.GetTransaction()
+		//if info == nil {
+		//	continue
+		//}
 
 		//sig := base58.Encode(info.GetSignature())
-		meta := info.GetMeta()
+		//meta := info.GetMeta()
 
-		failed := meta != nil && meta.GetErr() != nil
+		//failed := meta != nil && meta.GetErr() != nil
 		//status := "success"
 		//if failed {
 		//	status = "failed"
 		//}
 
-		if !failed {
-			if slot != tx.GetSlot() {
-				slot = tx.GetSlot()
-				fmt.Printf("slot %d delay %d \n", tx.GetSlot(), update.CreatedAt.GetSeconds()-time.Now().Unix())
-			}
-			swaps, err := txService.parse(ctx, update)
+		fmt.Printf("slot %d delay %d \n", block.GetSlot(), block.BlockTime.Timestamp-time.Now().Unix())
+
+		for _, tx := range block.Transactions {
+			swaps, err := txService.parse(ctx, tx, block.Slot, block.BlockTime.Timestamp)
 			if err != nil {
 				log.Fatalf("Failed to parse transaction: %v", err)
 			}

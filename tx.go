@@ -36,15 +36,10 @@ func NewTxService() *TxService {
 	}
 }
 
-func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) ([]*SwapEvent, error) {
-	tx := update.GetTransaction()
-	if tx == nil {
-		return nil, nil
-	}
-
+func (ts *TxService) parse(ctx context.Context, tx *proto.SubscribeUpdateTransactionInfo, slot uint64, blockUnix int64) ([]*SwapEvent, error) {
 	swaps := make([]*SwapEvent, 0)
-	decimals := ts.extractDecimals(tx.Transaction)
-	instructions := ts.extractInstructions(tx.Transaction)
+	decimals := ts.extractDecimals(tx)
+	instructions := ts.extractInstructions(tx)
 	for _, ins := range instructions {
 		if len(ins.rawData) < 16 {
 			continue
@@ -70,8 +65,7 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 					quoteAmount := event.QuoteAmountInWithLpFee
 					baseAmountUi := float64(baseAmount) / math.Pow10(decimals[base])
 					quoteAmountUi := float64(quoteAmount) / math.Pow10(decimals[quote])
-					txHash := base58.Encode(tx.Transaction.Signature)
-					slot := tx.Slot
+					txHash := base58.Encode(tx.Signature)
 
 					//var baseFee, quoteFee *FeeInfo
 					//baseFeeInfo, err := ts.feeService.GetFeeInfo(ctx, base, tx.Slot)
@@ -195,8 +189,8 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 						TxHash:                 txHash,
 						Slot:                   slot,
 						Source:                 "pump_amm",
-						BlockUnixTime:          event.Timestamp,
-						BlockHumanTime:         time.Unix(event.Timestamp, 0).Format("2006-01-02T15:04:05"),
+						BlockUnixTime:          blockUnix,
+						BlockHumanTime:         time.Unix(blockUnix, 0).Format("2006-01-02T15:04:05"),
 						TxType:                 "swap",
 						Address:                ins.accounts[0],
 						Owner:                  ins.accounts[1],
@@ -240,8 +234,7 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 					quoteAmount := event.QuoteAmountOut
 					baseAmountUi := float64(baseAmount) / math.Pow10(decimals[base])
 					quoteAmountUi := float64(quoteAmount) / math.Pow10(decimals[quote])
-					txHash := base58.Encode(tx.Transaction.Signature)
-					slot := tx.Slot
+					txHash := base58.Encode(tx.Signature)
 
 					//var baseFee, quoteFee *FeeInfo
 					//baseFeeInfo, err := ts.feeService.GetFeeInfo(ctx, base, tx.Slot)
@@ -365,8 +358,8 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 						TxHash:                 txHash,
 						Slot:                   slot,
 						Source:                 "pump_amm",
-						BlockUnixTime:          update.CreatedAt.GetSeconds(),
-						BlockHumanTime:         update.CreatedAt.AsTime().Format("2006-01-02T15:04:05"),
+						BlockUnixTime:          blockUnix,
+						BlockHumanTime:         time.Unix(blockUnix, 0).Format("2006-01-02T15:04:05"),
 						TxType:                 "swap",
 						Address:                ins.accounts[0],
 						Owner:                  ins.accounts[1],
