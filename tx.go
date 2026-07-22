@@ -127,10 +127,10 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 					//}
 
 					var baseMeta, quoteMeta *TokenMetaData
-					baseMeta, err = ts.metadataCache.GetTokenMeta(ctx, base)
-					if err != nil {
-						return nil, err
-					}
+					//baseMeta, err = ts.metadataCache.GetTokenMeta(ctx, base)
+					//if err != nil {
+					//	return nil, err
+					//}
 					baseSymbol := "Unknown"
 					baseLogo := ""
 					if baseMeta != nil {
@@ -139,10 +139,10 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 							baseLogo = baseMeta.MetaplexURIData.Image
 						}
 					}
-					quoteMeta, err = ts.metadataCache.GetTokenMeta(ctx, quote)
-					if err != nil {
-						return nil, err
-					}
+					//quoteMeta, err = ts.metadataCache.GetTokenMeta(ctx, quote)
+					//if err != nil {
+					//	return nil, err
+					//}
 					quoteSymbol := "Unknown"
 					quoteLogo := ""
 					if quoteMeta != nil {
@@ -266,35 +266,35 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 					//}
 
 					priceData := &BuildTokenPriceV2Result{}
-					priceData, err = ts.priceService.BuildTokenPriceV2(
-						ctx,
-						&Coin{
-							Address:  base,
-							Amount:   float64(baseAmount),
-							Decimals: baseDecimals,
-							Symbol:   "",
-							TypeSwap: "from",
-							FeeInfo:  nil,
-						},
-						&Coin{
-							Address:  quote,
-							Amount:   float64(quoteAmount),
-							Decimals: quoteDecimals,
-							Symbol:   "",
-							TypeSwap: "to",
-							FeeInfo:  nil,
-						},
-						update.CreatedAt.GetSeconds(),
-						update.CreatedAt.AsTime().Format("2006-01-02T15:04:05"),
-						tx.Slot,
-						"pump_amm",
-						&ins.accounts[0],
-						"swap",
-						"sell",
-					)
-					if err != nil {
-						return nil, err
-					}
+					//priceData, err = ts.priceService.BuildTokenPriceV2(
+					//	ctx,
+					//	&Coin{
+					//		Address:  base,
+					//		Amount:   float64(baseAmount),
+					//		Decimals: baseDecimals,
+					//		Symbol:   "",
+					//		TypeSwap: "from",
+					//		FeeInfo:  nil,
+					//	},
+					//	&Coin{
+					//		Address:  quote,
+					//		Amount:   float64(quoteAmount),
+					//		Decimals: quoteDecimals,
+					//		Symbol:   "",
+					//		TypeSwap: "to",
+					//		FeeInfo:  nil,
+					//	},
+					//	update.CreatedAt.GetSeconds(),
+					//	update.CreatedAt.AsTime().Format("2006-01-02T15:04:05"),
+					//	tx.Slot,
+					//	"pump_amm",
+					//	&ins.accounts[0],
+					//	"swap",
+					//	"sell",
+					//)
+					//if err != nil {
+					//	return nil, err
+					//}
 
 					var baseMeta, quoteMeta *TokenMetaData
 					//baseMeta, err = ts.metadataCache.GetTokenMeta(ctx, base)
