@@ -127,10 +127,10 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 					//}
 
 					var baseMeta, quoteMeta *TokenMetaData
-					//baseMeta, err := ts.metadataCache.GetTokenMeta(ctx, base)
-					//if err != nil {
-					//	return nil, err
-					//}
+					baseMeta, err = ts.metadataCache.GetTokenMeta(ctx, base)
+					if err != nil {
+						return nil, err
+					}
 					baseSymbol := "Unknown"
 					baseLogo := ""
 					if baseMeta != nil {
@@ -139,10 +139,10 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 							baseLogo = baseMeta.MetaplexURIData.Image
 						}
 					}
-					//quoteMeta, err := ts.metadataCache.GetTokenMeta(ctx, quote)
-					//if err != nil {
-					//	return nil, err
-					//}
+					quoteMeta, err = ts.metadataCache.GetTokenMeta(ctx, quote)
+					if err != nil {
+						return nil, err
+					}
 					quoteSymbol := "Unknown"
 					quoteLogo := ""
 					if quoteMeta != nil {
@@ -297,10 +297,10 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 					//}
 
 					var baseMeta, quoteMeta *TokenMetaData
-					//baseMeta, err := ts.metadataCache.GetTokenMeta(ctx, base)
-					//if err != nil {
-					//	return nil, err
-					//}
+					baseMeta, err = ts.metadataCache.GetTokenMeta(ctx, base)
+					if err != nil {
+						return nil, err
+					}
 					baseSymbol := "Unknown"
 					baseLogo := ""
 					if baseMeta != nil {
@@ -309,10 +309,10 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 							baseLogo = baseMeta.MetaplexURIData.Image
 						}
 					}
-					//quoteMeta, err := ts.metadataCache.GetTokenMeta(ctx, quote)
-					//if err != nil {
-					//	return nil, err
-					//}
+					quoteMeta, err = ts.metadataCache.GetTokenMeta(ctx, quote)
+					if err != nil {
+						return nil, err
+					}
 					quoteSymbol := "Unknown"
 					quoteLogo := ""
 					if quoteMeta != nil {
