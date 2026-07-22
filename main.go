@@ -120,7 +120,10 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 	//}
 	subscription.Blocks = make(map[string]*pb.SubscribeRequestFilterBlocks)
 	subscription.Blocks["blocks_sub"] = &pb.SubscribeRequestFilterBlocks{
-		AccountInclude: []string{"pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"},
+		AccountInclude:      []string{"pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"},
+		IncludeTransactions: new(true),
+		IncludeAccounts:     new(false),
+		IncludeEntries:      new(false),
 	}
 	subscription.Commitment = new(pb.CommitmentLevel_PROCESSED)
 
