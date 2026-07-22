@@ -185,9 +185,10 @@ func (s *PriceService) BuildTokenPriceV2(
 		source == SourceOpenbookSwap ||
 		((source == SourceStakePool || source == SourceSanctum) &&
 			(insType != "deposit-sol" && insType != "withdraw-sol"))
+	skipPriceUpdate = true
 	if skipPriceUpdate {
-		result.PriceBaseCoin = nil
-		result.PriceQuoteCoin = nil
+		//result.PriceBaseCoin = nil
+		//result.PriceQuoteCoin = nil
 		return result, nil
 	}
 

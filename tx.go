@@ -241,27 +241,27 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 					txHash := base58.Encode(tx.Transaction.Signature)
 					slot := tx.Slot
 
-					var baseFee, quoteFee *FeeInfo
-					baseFeeInfo, err := ts.feeService.GetFeeInfo(ctx, base, tx.Slot)
-					if err != nil {
-						return nil, err
-					}
-					if baseFeeInfo != nil {
-						baseFee = &FeeInfo{
-							TransferFeeBasisPoints: float64(baseFeeInfo.TransferFeeBasisPoints),
-							MaximumFee:             float64(baseFeeInfo.MaximumFee),
-						}
-					}
-					quoteFeeInfo, err := ts.feeService.GetFeeInfo(ctx, quote, tx.Slot)
-					if err != nil {
-						return nil, err
-					}
-					if quoteFeeInfo != nil {
-						quoteFee = &FeeInfo{
-							TransferFeeBasisPoints: float64(quoteFeeInfo.TransferFeeBasisPoints),
-							MaximumFee:             float64(quoteFeeInfo.MaximumFee),
-						}
-					}
+					//var baseFee, quoteFee *FeeInfo
+					//baseFeeInfo, err := ts.feeService.GetFeeInfo(ctx, base, tx.Slot)
+					//if err != nil {
+					//	return nil, err
+					//}
+					//if baseFeeInfo != nil {
+					//	baseFee = &FeeInfo{
+					//		TransferFeeBasisPoints: float64(baseFeeInfo.TransferFeeBasisPoints),
+					//		MaximumFee:             float64(baseFeeInfo.MaximumFee),
+					//	}
+					//}
+					//quoteFeeInfo, err := ts.feeService.GetFeeInfo(ctx, quote, tx.Slot)
+					//if err != nil {
+					//	return nil, err
+					//}
+					//if quoteFeeInfo != nil {
+					//	quoteFee = &FeeInfo{
+					//		TransferFeeBasisPoints: float64(quoteFeeInfo.TransferFeeBasisPoints),
+					//		MaximumFee:             float64(quoteFeeInfo.MaximumFee),
+					//	}
+					//}
 
 					priceData, err := ts.priceService.BuildTokenPriceV2(
 						ctx,
@@ -271,7 +271,7 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 							Decimals: baseDecimals,
 							Symbol:   "",
 							TypeSwap: "from",
-							FeeInfo:  baseFee,
+							FeeInfo:  nil,
 						},
 						&Coin{
 							Address:  quote,
@@ -279,7 +279,7 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 							Decimals: quoteDecimals,
 							Symbol:   "",
 							TypeSwap: "to",
-							FeeInfo:  quoteFee,
+							FeeInfo:  nil,
 						},
 						update.CreatedAt.GetSeconds(),
 						update.CreatedAt.AsTime().Format("2006-01-02T15:04:05"),
