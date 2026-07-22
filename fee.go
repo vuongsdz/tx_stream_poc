@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 )
@@ -114,7 +113,7 @@ func (s *FeeService) memPut(address string, fee *TransferFee) {
 }
 
 func (s *FeeService) getAccountInfo(ctx context.Context, address string) (*accountInfoResponse, error) {
-	log.Printf("getFeeInfogetAccountInfo %s", address)
+	//log.Printf("getFeeInfogetAccountInfo %s", address)
 
 	raw, err := s.rpc.SendRequest(ctx, rpcNetwork, "getAccountInfo", []interface{}{
 		address,
@@ -142,21 +141,21 @@ func (s *FeeService) getAccountInfo(ctx context.Context, address string) (*accou
 
 func (s *FeeService) GetFeeInfo(ctx context.Context, address string, slot uint64) (*TransferFee, error) {
 	if _, known := nonToken2022Addresses[address]; known {
-		log.Printf("getFeeInfo hashcode not 2022, address %s, slot %d, result %v", address, slot, nil)
+		//log.Printf("getFeeInfo hashcode not 2022, address %s, slot %d, result %v", address, slot, nil)
 		return nil, nil
 	}
 
-	log.Printf("getFeeInfo from memcache, address %s, slot %d", address, slot)
+	//log.Printf("getFeeInfo from memcache, address %s, slot %d", address, slot)
 	if fee, found := s.memGet(address); found {
 		if fee == nil {
-			log.Printf("getFeeInfo from memcache, address %s, slot %d, result %v", address, slot, nil)
+			//log.Printf("getFeeInfo from memcache, address %s, slot %d, result %v", address, slot, nil)
 			return nil, nil
 		}
-		log.Printf("getFeeInfo from memcache, address %s, slot %d, result %+v", address, slot, fee)
+		//log.Printf("getFeeInfo from memcache, address %s, slot %d, result %+v", address, slot, fee)
 		return fee, nil
 	}
 
-	log.Printf("getFeeInfo from redis, address %s, slot %d", address, slot)
+	//log.Printf("getFeeInfo from redis, address %s, slot %d", address, slot)
 	cachedFee, cacheHit, err := s.cache.GetTokenFee(ctx, address)
 	if err != nil {
 		return nil, err
