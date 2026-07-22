@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/mr-tron/base58"
 	pb "github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -140,6 +139,8 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 		log.Fatalf("%v", err)
 	}
 
+	slot := uint64(1)
+
 	for {
 		update, err := stream.Recv()
 		if err != nil {
@@ -158,17 +159,21 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 			continue
 		}
 
-		sig := base58.Encode(info.GetSignature())
+		//sig := base58.Encode(info.GetSignature())
 		meta := info.GetMeta()
 
 		failed := meta != nil && meta.GetErr() != nil
-		status := "success"
-		if failed {
-			status = "failed"
-		}
+		//status := "success"
+		//if failed {
+		//	status = "failed"
+		//}
 
 		if !failed {
-			fmt.Printf("[slot %d] tx %s (%s)\n", tx.GetSlot(), sig, status)
+			if slot != tx.GetSlot() {
+				slot = tx.GetSlot()
+				fmt.Printf("slot %d", tx.GetSlot())
+			}
+			//fmt.Printf("[slot %d] tx %s (%s)\n", tx.GetSlot(), sig, status)
 			swaps, err := txService.parse(ctx, update)
 			if err != nil {
 				log.Fatalf("Failed to parse transaction: %v", err)
