@@ -173,14 +173,13 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 		if !failed {
 			if slot != tx.GetSlot() {
 				slot = tx.GetSlot()
-				fmt.Printf("slot %d \n", tx.GetSlot())
+				fmt.Printf("slot %d delay %d \n", tx.GetSlot(), update.CreatedAt.GetSeconds()-time.Now().Unix())
 			}
-			//fmt.Printf("[slot %d] tx %s (%s)\n", tx.GetSlot(), sig, status)
-			//swaps, err := txService.parse(ctx, update)
-			//if err != nil {
-			//	log.Fatalf("Failed to parse transaction: %v", err)
-			//}
-			//
+			swaps, err := txService.parse(ctx, update)
+			if err != nil {
+				log.Fatalf("Failed to parse transaction: %v", err)
+			}
+
 			//for _, swap := range swaps {
 			//	go send(mqttService, swap)
 			//}
