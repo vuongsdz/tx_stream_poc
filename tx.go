@@ -222,6 +222,9 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 			base := ins.accounts[3]
 			quote := ins.accounts[4]
 			for _, innerIns := range ins.innerInstructions {
+				if len(innerIns.rawData) < 16 {
+					continue
+				}
 				dis := base58.Encode(innerIns.rawData[0:16])
 				if dis == "VBuTFX8Ey5wmPqmS94kc5o" {
 					e, err := pump_amm.ParseAnyEvent(innerIns.rawData[8:])
