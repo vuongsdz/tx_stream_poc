@@ -171,15 +171,15 @@ func (s *PriceService) BuildTokenPriceV2(
 		volumeQuoteUsd = &v
 	}
 
-	updateVolumeBy, _ := s.getVolumePriorify(ctx, baseCoin.Address, quoteCoin.Address)
-	switch {
-	case volumeBaseUsd != nil && updateVolumeBy == "base":
-		result.VolumeUSD = volumeBaseUsd
-	case volumeQuoteUsd != nil && updateVolumeBy == "quote":
-		result.VolumeUSD = volumeQuoteUsd
-	default:
-		result.VolumeUSD = nil
-	}
+	//updateVolumeBy, _ := s.getVolumePriorify(ctx, baseCoin.Address, quoteCoin.Address)
+	//switch {
+	//case volumeBaseUsd != nil && updateVolumeBy == "base":
+	result.VolumeUSD = volumeBaseUsd
+	//case volumeQuoteUsd != nil && updateVolumeBy == "quote":
+	//	result.VolumeUSD = volumeQuoteUsd
+	//default:
+	//	result.VolumeUSD = nil
+	//}
 
 	skipPriceUpdate := source == SourceSerumSwap ||
 		source == SourceOpenbookSwap ||
