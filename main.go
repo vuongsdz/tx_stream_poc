@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"net/url"
 	"time"
 
@@ -80,6 +81,8 @@ func grpc_connect(address string, plaintext bool) *grpc.ClientConn {
 	}
 
 	opts = append(opts, grpc.WithKeepaliveParams(kacp))
+	opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(math.MaxInt64)))
+	opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(math.MaxInt64)))
 
 	log.Println("Starting grpc client, connecting to", address)
 	conn, err := grpc.NewClient(address, opts...)
@@ -119,7 +122,7 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 	subscription.Blocks["blocks_sub"] = &pb.SubscribeRequestFilterBlocks{
 		AccountInclude: []string{"pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"},
 	}
-	subscription.Commitment = new(pb.CommitmentLevel_CONFIRMED)
+	subscription.Commitment = new(pb.CommitmentLevel_PROCESSED)
 
 	subscriptionJson, err := json.Marshal(&subscription)
 	if err != nil {
