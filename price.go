@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"math"
 )
 
@@ -297,11 +296,6 @@ func (s *PriceService) BuildTokenPriceV2(
 		mergePriceByTrustPairResult(result, priceResult)
 		result.UpdatePriceByVolume = true
 
-		commitResult, err := s.CommitPriceResult(ctx, slot, unixTime, humanTime, source, baseCoin, quoteCoin, result)
-		if err != nil {
-			return result, err
-		}
-		result.CommitPrices = append(result.CommitPrices, commitResult...)
 		return result, nil
 	}
 
@@ -316,11 +310,6 @@ func (s *PriceService) BuildTokenPriceV2(
 	}
 	mergePriceByTrustPairResult(result, priceResult)
 
-	commitResult, err := s.CommitPriceResult(ctx, slot, unixTime, humanTime, source, baseCoin, quoteCoin, result)
-	if err != nil {
-		return result, err
-	}
-	result.CommitPrices = append(result.CommitPrices, commitResult...)
 	return result, nil
 }
 
@@ -362,19 +351,149 @@ func (s *PriceService) BuildPriceByTrustPair(
 	updatePriceBy string,
 	isWhitelist bool,
 ) (*PriceByTrustPairResult, error) {
-	return nil, errors.New("price: BuildPriceByTrustPair not implemented — port buildPriceByTrustPair separately")
-}
+	result := &PriceByTrustPairResult{}
 
-func (s *PriceService) CommitPriceResult(
-	ctx context.Context,
-	slot uint64,
-	unixTime int64,
-	humanTime string,
-	source string,
-	baseCoin, quoteCoin *Coin,
-	result *BuildTokenPriceV2Result,
-) ([]CommitPrice, error) {
-	return nil, errors.New("price: CommitPriceResult not implemented — port commitPriceResult separately")
+	var volumeCheckOutlier *float64
+	outliers := false
+	var priceBaseCoin *float64
+	var priceQuoteCoin *float64
+	var updateByCoin *string
+	var volumeUSD *float64
+
+	switch updatePriceBy {
+	case "base":
+		volumeCheckOutlier = volumeBaseUsd
+	case "quote":
+		volumeCheckOutlier = volumeQuoteUsd
+	}
+
+	if volumeCheckOutlier != nil && *volumeCheckOutlier < 0.1 && !isWhitelist {
+		outliers = true
+		result.Outliers = new(true)
+		// NOTE: in the JS original this reads result.volumeUSD before it is
+		// ever assigned, so outliersVolume is always undefined (nil here).
+		result.OutliersVolume = result.VolumeUSD
+	}
+
+	stableCoins := []string{"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"}
+	for _, stableCoin := range stableCoins {
+		if quoteCoin.Address == stableCoin {
+			// quote is a stable coin: update base price via stable-coin price
+			priceRatio := 1
+
+			if !outliers {
+				priceBaseCoin = new(pricePair * float64(priceRatio))
+				priceQuoteCoin = new(float64(priceRatio))
+				volumeUSD = &quoteCoinAmount
+				updateByCoin = &stableCoin
+			} else {
+				// JS assigns priceBaseCoin from priceBaseInfo and then
+				// immediately nulls it; the net effect is preserved here.
+				priceBaseCoin = nil
+				if priceQuoteInfo != nil {
+					priceQuoteCoin = &priceQuoteInfo.Value
+				} else {
+					priceQuoteCoin = nil
+				}
+				volumeUSD = &quoteCoinAmount
+			}
+
+			result.PriceBaseCoin = priceBaseCoin
+			result.PriceQuoteCoin = priceQuoteCoin
+			result.VolumeUSD = volumeUSD
+			result.UpdateByCoin = updateByCoin
+			return result, nil
+		}
+
+		if baseCoin.Address == stableCoin {
+			// base is a stable coin: update quote price via stable-coin price
+			priceRatio := float64(1)
+
+			if !outliers {
+				priceQuoteCoin = new(baseCoinAmount / quoteCoinAmount * priceRatio)
+				priceBaseCoin = &priceRatio
+				updateByCoin = &stableCoin
+				volumeUSD = &baseCoinAmount
+			} else {
+				if priceBaseInfo != nil {
+					priceBaseCoin = &priceBaseInfo.Value
+				} else {
+					priceBaseCoin = nil
+				}
+				// JS assigns priceQuoteCoin from priceQuoteInfo and then
+				// immediately nulls it; the net effect is preserved here.
+				priceQuoteCoin = nil
+				volumeUSD = &baseCoinAmount
+			}
+
+			result.UpdateByCoin = updateByCoin
+			result.PriceBaseCoin = priceBaseCoin
+			result.PriceQuoteCoin = priceQuoteCoin
+			result.VolumeUSD = volumeUSD
+			return result, nil
+		}
+	}
+
+	// Base price is stale (or absent): update by quote.
+	if (priceQuoteInfo != nil && priceBaseInfo == nil) ||
+		(priceQuoteInfo != nil && priceBaseInfo != nil && updatePriceBy == "both" && priceQuoteInfo.UpdateUnixTime > priceBaseInfo.UpdateUnixTime) ||
+		(priceQuoteInfo != nil && priceBaseInfo != nil && updatePriceBy == "quote") {
+
+		if !outliers {
+			pq := priceQuoteInfo.Value
+			priceBaseCoin = new(quoteCoinAmount * pq / baseCoinAmount)
+			volumeUSD = new(quoteCoinAmount * pq)
+			updateByCoin = &quoteCoin.Symbol
+			priceQuoteCoin = nil // JS nulls priceQuoteCoin after using it
+		} else {
+			pq := priceQuoteInfo.Value // priceQuoteInfo is guaranteed non-nil here
+			volumeUSD = new(quoteCoinAmount * pq)
+			priceBaseCoin = nil
+			priceQuoteCoin = nil
+		}
+
+		result.UpdateByCoin = updateByCoin
+		result.PriceBaseCoin = priceBaseCoin
+		result.PriceQuoteCoin = priceQuoteCoin
+		result.VolumeUSD = volumeUSD
+		return result, nil
+	}
+
+	// Quote price is stale (or absent): update by base.
+	if (priceQuoteInfo == nil && priceBaseInfo != nil) ||
+		(priceQuoteInfo != nil && priceBaseInfo != nil && updatePriceBy == "both" && priceQuoteInfo.UpdateUnixTime < priceBaseInfo.UpdateUnixTime) ||
+		(priceQuoteInfo != nil && priceBaseInfo != nil && updatePriceBy == "base") {
+
+		if !outliers {
+			pb := priceBaseInfo.Value
+			priceQuoteCoin = new(baseCoinAmount * pb / quoteCoinAmount)
+			volumeUSD = new(baseCoinAmount * pb)
+			updateByCoin = &baseCoin.Symbol
+			priceBaseCoin = nil // JS nulls priceBaseCoin after using it
+		} else {
+			pb := priceBaseInfo.Value // priceBaseInfo is guaranteed non-nil here
+			volumeUSD = new(baseCoinAmount * pb)
+			priceBaseCoin = nil
+			priceQuoteCoin = nil
+		}
+
+		result.UpdateByCoin = updateByCoin
+		result.PriceBaseCoin = priceBaseCoin
+		result.PriceQuoteCoin = priceQuoteCoin
+		result.VolumeUSD = volumeUSD
+		return result, nil
+	}
+
+	// Both prices are equally fresh: keep them as-is.
+	if priceQuoteInfo != nil && priceBaseInfo != nil && priceQuoteInfo.UpdateUnixTime == priceBaseInfo.UpdateUnixTime {
+		pb := priceBaseInfo.Value
+		result.PriceBaseCoin = &pb
+		result.PriceQuoteCoin = &priceQuoteInfo.Value
+		result.VolumeUSD = new(baseCoinAmount * pb)
+		return result, nil
+	}
+
+	return result, nil
 }
 
 func priceInfoValue(pi *PriceInfo) *float64 {
