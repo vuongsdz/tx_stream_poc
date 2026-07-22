@@ -175,19 +175,23 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 			}
 
 			for _, swap := range swaps {
-				bytes, err := json.Marshal([]*SwapEvent{swap})
-				if err != nil {
-					log.Fatalf("Failed to marshal swap event: %v", err)
-				}
-				err = mqttService.Publish("emqx-cluster", "subscribe_txs_test/solana/"+swap.Base.Address, bytes)
-				if err != nil {
-					log.Fatalf("Failed to publish message: %v", err)
-				}
-				err = mqttService.Publish("emqx-cluster", "subscribe_txs_test/solana/"+swap.Quote.Address, bytes)
-				if err != nil {
-					log.Fatalf("Failed to publish message: %v", err)
-				}
+				go send(mqttService, swap)
 			}
 		}
+	}
+}
+
+func send(mqttService *MqttService, swap *SwapEvent) {
+	bytes, err := json.Marshal([]*SwapEvent{swap})
+	if err != nil {
+		log.Fatalf("Failed to marshal swap event: %v", err)
+	}
+	err = mqttService.Publish("emqx-cluster", "subscribe_txs_test/solana/"+swap.Base.Address, bytes)
+	if err != nil {
+		log.Fatalf("Failed to publish message: %v", err)
+	}
+	err = mqttService.Publish("emqx-cluster", "subscribe_txs_test/solana/"+swap.Quote.Address, bytes)
+	if err != nil {
+		log.Fatalf("Failed to publish message: %v", err)
 	}
 }
