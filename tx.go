@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"math"
+	"time"
 	"tx_stream_poc/pump_amm"
 
 	"github.com/mr-tron/base58"
@@ -192,8 +193,8 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 						TxHash:                 txHash,
 						Slot:                   slot,
 						Source:                 "pump_amm",
-						BlockUnixTime:          update.CreatedAt.GetSeconds(),
-						BlockHumanTime:         update.CreatedAt.AsTime().Format("2006-01-02T15:04:05"),
+						BlockUnixTime:          event.Timestamp,
+						BlockHumanTime:         time.Unix(event.Timestamp, 0).Format("2006-01-02T15:04:05"),
 						TxType:                 "swap",
 						Address:                ins.accounts[0],
 						Owner:                  ins.accounts[1],
