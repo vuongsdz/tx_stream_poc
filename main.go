@@ -171,7 +171,7 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 		if !failed {
 			if slot != tx.GetSlot() {
 				slot = tx.GetSlot()
-				fmt.Printf("slot %d", tx.GetSlot())
+				fmt.Printf("slot %d \n", tx.GetSlot())
 			}
 			//fmt.Printf("[slot %d] tx %s (%s)\n", tx.GetSlot(), sig, status)
 			swaps, err := txService.parse(ctx, update)
