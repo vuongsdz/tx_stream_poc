@@ -1,0 +1,4 @@
+// Code pump_amm by https://github.com/gagliardetto/anchor-go. DO NOT EDIT.
+// This file contains constants.
+
+package pump_amm
