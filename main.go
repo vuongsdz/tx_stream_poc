@@ -103,6 +103,8 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 	if err != nil {
 		panic(err)
 	}
+	if txService == nil || mqttService == nil {
+	}
 	//atlService, err := NewATLService("https://patient-crimson-moon.solana-mainnet.quiknode.pro/")
 	//if err != nil {
 	//	panic(err)
@@ -174,14 +176,14 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 				fmt.Printf("slot %d \n", tx.GetSlot())
 			}
 			//fmt.Printf("[slot %d] tx %s (%s)\n", tx.GetSlot(), sig, status)
-			swaps, err := txService.parse(ctx, update)
-			if err != nil {
-				log.Fatalf("Failed to parse transaction: %v", err)
-			}
-
-			for _, swap := range swaps {
-				go send(mqttService, swap)
-			}
+			//swaps, err := txService.parse(ctx, update)
+			//if err != nil {
+			//	log.Fatalf("Failed to parse transaction: %v", err)
+			//}
+			//
+			//for _, swap := range swaps {
+			//	go send(mqttService, swap)
+			//}
 		}
 	}
 }
