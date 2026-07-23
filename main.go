@@ -19,6 +19,8 @@ var (
 	endpoint = flag.String("endpoint", "", "Helius LaserStream endpoint, e.g. https://laserstream-mainnet-tyo.helius-rpc.com")
 	apiKey   = flag.String("api-key", "", "Helius API key")
 	xToken   = flag.String("x-token", "", "Helius API key (alias for --api-key)")
+
+	blockTimeSource = flag.String("block-time-source", "clock", "Time to attach to swaps: clock (Clock sysvar for the slot), event (timestamp embedded in the pump event), or server (created_at set by the gRPC/geyser server)")
 )
 
 func main() {
@@ -32,10 +34,15 @@ func main() {
 	}
 
 	if *endpoint == "" {
-		log.Fatalf("--endpoint is required (Helius LaserStream endpoint)")
+		log.Fatalf("--endpoint is required (gRPC endpoint, e.g. https://laserstream-... or http://10.0.0.250:10000)")
 	}
 	if key == "" {
-		log.Fatalf("--api-key (or --x-token) is required (Helius API key)")
+		// Internal/plaintext nodes (http://…) typically need no auth; the SDK
+		// only sends the x-token header when a key is set.
+		log.Println("no --api-key/--x-token provided; connecting without auth")
+	}
+	if *blockTimeSource != "clock" && *blockTimeSource != "event" && *blockTimeSource != "server" {
+		log.Fatalf("--block-time-source must be 'clock', 'event', or 'server', got %q", *blockTimeSource)
 	}
 
 	txService := NewTxService()
@@ -132,8 +139,6 @@ func handleUpdate(
 		return // failed transaction
 	}
 
-	// Block time comes only from the Clock sysvar for this exact slot.
-	// If we haven't seen it yet, leave the fields null — no fallback.
 	clockTime, exact := clockService.BlockTime(tx.GetSlot())
 	if *slot != tx.GetSlot() {
 		*slot = tx.GetSlot()
@@ -150,16 +155,41 @@ func handleUpdate(
 		return
 	}
 
-	if !exact && len(swaps) > 0 {
-		log.Printf("no clock time for slot %d; leaving block time null on %d swap(s)", tx.GetSlot(), len(swaps))
-	}
-	for _, swap := range swaps {
-		if exact {
-			unixTime := clockTime
-			humanTime := time.Unix(unixTime, 0).Format("2006-01-02T15:04:05")
-			swap.BlockUnixTime = &unixTime
-			swap.BlockHumanTime = &humanTime
+	// parse() has already set each swap's time from the pump event timestamp
+	// (the "event" source). Override it for the other sources.
+	switch *blockTimeSource {
+	case "clock":
+		// Clock sysvar for this exact slot; null if we haven't seen it (no fallback).
+		if !exact && len(swaps) > 0 {
+			log.Printf("no clock time for slot %d; leaving block time null on %d swap(s)", tx.GetSlot(), len(swaps))
 		}
+		for _, swap := range swaps {
+			if exact {
+				unixTime := clockTime
+				humanTime := time.Unix(unixTime, 0).Format("2006-01-02T15:04:05")
+				swap.BlockUnixTime = &unixTime
+				swap.BlockHumanTime = &humanTime
+			} else {
+				swap.BlockUnixTime = nil
+				swap.BlockHumanTime = nil
+			}
+		}
+	case "server":
+		// created_at set by the geyser/gRPC server when it emitted this update.
+		var unixTime *int64
+		var humanTime *string
+		if ca := update.GetCreatedAt(); ca != nil {
+			t := ca.GetSeconds()
+			h := ca.AsTime().Format("2006-01-02T15:04:05")
+			unixTime, humanTime = &t, &h
+		}
+		for _, swap := range swaps {
+			swap.BlockUnixTime = unixTime
+			swap.BlockHumanTime = humanTime
+		}
+	}
+
+	for _, swap := range swaps {
 		go send(mqttService, swap)
 	}
 }

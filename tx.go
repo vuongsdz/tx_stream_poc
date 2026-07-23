@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"math"
+	"time"
 	"tx_stream_poc/pump_amm"
 
 	proto "github.com/helius-labs/laserstream-sdk/go/proto"
@@ -71,6 +72,10 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 					quoteAmountUi := float64(quoteAmount) / math.Pow10(decimals[quote])
 					txHash := base58.Encode(tx.Transaction.Signature)
 					slot := tx.Slot
+					// Block time embedded in the pump event (Clock read on-chain
+					// during execution). Used when --block-time-source=event.
+					eventTime := event.Timestamp
+					eventTimeStr := time.Unix(eventTime, 0).Format("2006-01-02T15:04:05")
 
 					//var baseFee, quoteFee *FeeInfo
 					//baseFeeInfo, err := ts.feeService.GetFeeInfo(ctx, base, tx.Slot)
@@ -194,6 +199,8 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 						TxHash:                 txHash,
 						Slot:                   slot,
 						Source:                 "pump_amm",
+						BlockUnixTime:          &eventTime,
+						BlockHumanTime:         &eventTimeStr,
 						TxType:                 "swap",
 						Address:                ins.accounts[0],
 						Owner:                  ins.accounts[1],
@@ -239,6 +246,10 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 					quoteAmountUi := float64(quoteAmount) / math.Pow10(decimals[quote])
 					txHash := base58.Encode(tx.Transaction.Signature)
 					slot := tx.Slot
+					// Block time embedded in the pump event (Clock read on-chain
+					// during execution). Used when --block-time-source=event.
+					eventTime := event.Timestamp
+					eventTimeStr := time.Unix(eventTime, 0).Format("2006-01-02T15:04:05")
 
 					//var baseFee, quoteFee *FeeInfo
 					//baseFeeInfo, err := ts.feeService.GetFeeInfo(ctx, base, tx.Slot)
@@ -362,6 +373,8 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 						TxHash:                 txHash,
 						Slot:                   slot,
 						Source:                 "pump_amm",
+						BlockUnixTime:          &eventTime,
+						BlockHumanTime:         &eventTimeStr,
 						TxType:                 "swap",
 						Address:                ins.accounts[0],
 						Owner:                  ins.accounts[1],
