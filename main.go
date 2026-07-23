@@ -92,7 +92,7 @@ func main() {
 
 func buildSubscription() *laserstream.SubscribeRequest {
 	sub := &pb.SubscribeRequest{}
-	commitment := pb.CommitmentLevel_CONFIRMED
+	commitment := pb.CommitmentLevel_PROCESSED
 	sub.Commitment = &commitment
 
 	if *subMode == "block" {
