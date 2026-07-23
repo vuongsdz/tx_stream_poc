@@ -5,7 +5,7 @@
 //   pm2 start ecosystem.config.js
 //
 // Override the endpoint/key without editing this file:
-//   LASERSTREAM_ENDPOINT=https://laserstream-mainnet-tyo.helius-rpc.com HELIUS_API_KEY=xxx pm2 start ecosystem.config.js
+//   GRPC_ENDPOINT=https://laserstream-mainnet-tyo.helius-rpc.com X_TOKEN=xxx pm2 start ecosystem.config.js
 //
 // Handy commands:
 //   pm2 logs tx_stream_clock_poc      # tail logs
@@ -15,9 +15,9 @@
 //   pm2 save && pm2 startup           # persist across reboots
 
 const endpoint =
-  process.env.LASERSTREAM_ENDPOINT ||
+  process.env.GRPC_ENDPOINT ||
   "https://laserstream-mainnet-tyo.helius-rpc.com";
-const apiKey = process.env.HELIUS_API_KEY || "";
+const apiKey = process.env.X_TOKEN || ""; // Helius API key
 
 const args = ["--endpoint", endpoint];
 if (apiKey) {
