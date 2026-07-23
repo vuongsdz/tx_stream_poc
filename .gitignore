@@ -1,0 +1,6 @@
+# compiled binary
+/tx_stream_clock_poc
+/tx_stream_clock_poc_linux
+
+# pm2 logs
+/logs/
