@@ -22,6 +22,7 @@ var (
 	grpcAddr           = flag.String("endpoint", "", "Solana gRPC address, in URI format e.g. https://api.rpcpool.com")
 	token              = flag.String("x-token", "", "Token for authenticating")
 	insecureConnection = flag.Bool("insecure", false, "Connect without TLS")
+	noMqtt             = flag.Bool("no-mqtt", false, "Skip MQTT and print swaps to stdout (for local testing)")
 )
 
 var kacp = keepalive.ClientParameters{
@@ -94,6 +95,7 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 	var err error
 
 	txService := NewTxService()
+	clockService := NewClockService()
 	mqttService, err := NewMqttService([]ClusterConfig{
 		{
 			Name:    "emqx-cluster",
@@ -118,6 +120,12 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 	subscription.Transactions = make(map[string]*pb.SubscribeRequestFilterTransactions)
 	subscription.Transactions["transactions_sub"] = &pb.SubscribeRequestFilterTransactions{
 		AccountInclude: []string{"pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"},
+	}
+	// Stream the Clock sysvar so we know each slot's block time. It is rewritten
+	// once per slot; every account update on this filter is the Clock account.
+	subscription.Accounts = make(map[string]*pb.SubscribeRequestFilterAccounts)
+	subscription.Accounts["clock_sub"] = &pb.SubscribeRequestFilterAccounts{
+		Account: []string{clockSysvarAddress},
 	}
 
 	subscriptionJson, err := json.Marshal(&subscription)
@@ -147,6 +155,14 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 		update, err := stream.Recv()
 		if err != nil {
 			log.Fatalf("stream error: %v", err)
+		}
+
+		// Clock sysvar write: record this slot's block time and move on.
+		if acc := update.GetAccount(); acc != nil {
+			if info := acc.GetAccount(); info != nil {
+				clockService.Update(acc.GetSlot(), info.GetData())
+			}
+			continue
 		}
 
 		tx := update.GetTransaction()
@@ -180,7 +196,19 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 				log.Fatalf("Failed to parse transaction: %v", err)
 			}
 
+			// Block time comes only from the Clock sysvar for this exact slot.
+			// If we haven't seen it yet, leave the fields null — no fallback.
+			clockTime, exact := clockService.BlockTime(tx.GetSlot())
+			if !exact && len(swaps) > 0 {
+				log.Printf("no clock time for slot %d; leaving block time null on %d swap(s)", tx.GetSlot(), len(swaps))
+			}
 			for _, swap := range swaps {
+				if exact {
+					unixTime := clockTime
+					humanTime := time.Unix(unixTime, 0).Format("2006-01-02T15:04:05")
+					swap.BlockUnixTime = &unixTime
+					swap.BlockHumanTime = &humanTime
+				}
 				go send(mqttService, swap)
 			}
 		}
