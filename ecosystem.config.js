@@ -8,7 +8,7 @@
 // side for comparison. Values are hard-coded below — edit them directly.
 //
 // Handy commands:
-//   pm2 logs tx_stream_clock_poc-clock    # tail one process
+//   pm2 logs tx_stream_clock_poc_clock    # tail one process
 //   pm2 logs                              # tail all
 //   pm2 restart all / pm2 stop all / pm2 delete all
 //   pm2 save && pm2 startup               # persist across reboots
@@ -31,24 +31,24 @@ module.exports = {
   apps: [
     {
       ...common,
-      name: "tx_stream_clock_poc-clock",
+      name: "tx_stream_clock_poc_clock",
       args: ["--endpoint", endpoint, "--block-time-source", "clock"],
-      out_file: "./logs/tx_stream_clock_poc-clock.out.log",
-      error_file: "./logs/tx_stream_clock_poc-clock.err.log",
+      out_file: "./logs/tx_stream_clock_poc_clock.out.log",
+      error_file: "./logs/tx_stream_clock_poc_clock.err.log",
     },
     {
       ...common,
-      name: "tx_stream_clock_poc-event",
+      name: "tx_stream_clock_poc_event",
       args: ["--endpoint", endpoint, "--block-time-source", "event"],
-      out_file: "./logs/tx_stream_clock_poc-event.out.log",
-      error_file: "./logs/tx_stream_clock_poc-event.err.log",
+      out_file: "./logs/tx_stream_clock_poc_event.out.log",
+      error_file: "./logs/tx_stream_clock_poc_event.err.log",
     },
     {
       ...common,
-      name: "tx_stream_clock_poc-server",
+      name: "tx_stream_clock_poc_server",
       args: ["--endpoint", endpoint, "--block-time-source", "server"],
-      out_file: "./logs/tx_stream_clock_poc-server.out.log",
-      error_file: "./logs/tx_stream_clock_poc-server.err.log",
+      out_file: "./logs/tx_stream_clock_poc_server.out.log",
+      error_file: "./logs/tx_stream_clock_poc_server.err.log",
     },
   ],
 };
