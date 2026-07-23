@@ -41,10 +41,19 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 	if tx == nil {
 		return nil, nil
 	}
+	return ts.parseTx(ctx, tx.GetTransaction(), tx.GetSlot())
+}
+
+// parseTx decodes pump_amm swaps from a single transaction. It works the same
+// whether the tx arrived via a transactions subscription or inside a block.
+func (ts *TxService) parseTx(ctx context.Context, txInfo *proto.SubscribeUpdateTransactionInfo, txSlot uint64) ([]*SwapEvent, error) {
+	if txInfo == nil {
+		return nil, nil
+	}
 
 	swaps := make([]*SwapEvent, 0)
-	decimals := ts.extractDecimals(tx.Transaction)
-	instructions := ts.extractInstructions(tx.Transaction)
+	decimals := ts.extractDecimals(txInfo)
+	instructions := ts.extractInstructions(txInfo)
 	for _, ins := range instructions {
 		if len(ins.rawData) < 16 {
 			continue
@@ -70,10 +79,10 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 					quoteAmount := event.QuoteAmountInWithLpFee
 					baseAmountUi := float64(baseAmount) / math.Pow10(decimals[base])
 					quoteAmountUi := float64(quoteAmount) / math.Pow10(decimals[quote])
-					txHash := base58.Encode(tx.Transaction.Signature)
-					slot := tx.Slot
-					// Block time embedded in the pump event (Clock read on-chain
-					// during execution). Used when --block-time-source=event.
+					txHash := base58.Encode(txInfo.Signature)
+					slot := txSlot
+					// Block time embedded in the pump event (Clock read on-chain during
+					// execution); a default that handleUpdate/handleBlock overrides.
 					eventTime := event.Timestamp
 					eventTimeStr := time.Unix(eventTime, 0).Format("2006-01-02T15:04:05")
 
@@ -244,10 +253,10 @@ func (ts *TxService) parse(ctx context.Context, update *proto.SubscribeUpdate) (
 					quoteAmount := event.QuoteAmountOut
 					baseAmountUi := float64(baseAmount) / math.Pow10(decimals[base])
 					quoteAmountUi := float64(quoteAmount) / math.Pow10(decimals[quote])
-					txHash := base58.Encode(tx.Transaction.Signature)
-					slot := tx.Slot
-					// Block time embedded in the pump event (Clock read on-chain
-					// during execution). Used when --block-time-source=event.
+					txHash := base58.Encode(txInfo.Signature)
+					slot := txSlot
+					// Block time embedded in the pump event (Clock read on-chain during
+					// execution); a default that handleUpdate/handleBlock overrides.
 					eventTime := event.Timestamp
 					eventTimeStr := time.Unix(eventTime, 0).Format("2006-01-02T15:04:05")
 

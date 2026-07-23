@@ -20,7 +20,7 @@ var (
 	apiKey   = flag.String("api-key", "", "Helius API key")
 	xToken   = flag.String("x-token", "", "Helius API key (alias for --api-key)")
 
-	blockTimeSource = flag.String("block-time-source", "clock", "Time to attach to swaps: clock (Clock sysvar for the slot), event (timestamp embedded in the pump event), or server (created_at set by the gRPC/geyser server)")
+	subMode = flag.String("sub-mode", "tx", "Subscription mode: tx (stream individual transactions) or block (stream whole blocks and parse their transactions)")
 )
 
 func main() {
@@ -41,8 +41,8 @@ func main() {
 		// only sends the x-token header when a key is set.
 		log.Println("no --api-key/--x-token provided; connecting without auth")
 	}
-	if *blockTimeSource != "clock" && *blockTimeSource != "event" && *blockTimeSource != "server" {
-		log.Fatalf("--block-time-source must be 'clock', 'event', or 'server', got %q", *blockTimeSource)
+	if *subMode != "tx" && *subMode != "block" {
+		log.Fatalf("--sub-mode must be 'tx' or 'block', got %q", *subMode)
 	}
 
 	txService := NewTxService()
@@ -92,6 +92,23 @@ func main() {
 
 func buildSubscription() *laserstream.SubscribeRequest {
 	sub := &pb.SubscribeRequest{}
+	commitment := pb.CommitmentLevel_CONFIRMED
+	sub.Commitment = &commitment
+
+	if *subMode == "block" {
+		// Stream whole blocks; the server filters each block's transactions down
+		// to those touching pump_amm. Blocks carry block_time directly, so we
+		// don't need the Clock sysvar here.
+		includeTx := true
+		sub.Blocks = map[string]*pb.SubscribeRequestFilterBlocks{
+			"blocks_sub": {
+				AccountInclude:      []string{"pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"},
+				IncludeTransactions: &includeTx,
+			},
+		}
+		return sub
+	}
+
 	sub.Transactions = map[string]*pb.SubscribeRequestFilterTransactions{
 		"transactions_sub": {
 			AccountInclude: []string{"pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"},
@@ -104,8 +121,6 @@ func buildSubscription() *laserstream.SubscribeRequest {
 			Account: []string{clockSysvarAddress},
 		},
 	}
-	commitment := pb.CommitmentLevel_CONFIRMED
-	sub.Commitment = &commitment
 	return sub
 }
 
@@ -116,6 +131,12 @@ func handleUpdate(
 	mqttService *MqttService,
 	slot *uint64,
 ) {
+	// Block subscription: parse every pump_amm transaction the block carries.
+	if block := update.GetBlock(); block != nil {
+		handleBlock(update, block, txService, mqttService)
+		return
+	}
+
 	// Clock sysvar write: record this slot's block time and move on.
 	if acc := update.GetAccount(); acc != nil {
 		if info := acc.GetAccount(); info != nil {
@@ -139,8 +160,8 @@ func handleUpdate(
 		return // failed transaction
 	}
 
-	// Always record the geyser/gRPC server's created_at and our local receive
-	// time (both unix millis), regardless of which block-time source is selected.
+	// Record the geyser/gRPC server's created_at and our local receive time
+	// (both unix millis) alongside the block time.
 	var serverEventMs int64
 	if ca := update.GetCreatedAt(); ca != nil {
 		serverEventMs = ca.AsTime().UnixMilli()
@@ -163,47 +184,77 @@ func handleUpdate(
 		return
 	}
 
-	for _, swap := range swaps {
-		swap.GrpcServerTime = serverEventMs
-		swap.ServerTime = serverMs
+	if !exact && len(swaps) > 0 {
+		log.Printf("no clock time for slot %d; leaving block time null on %d swap(s)", tx.GetSlot(), len(swaps))
 	}
-
-	// parse() has already set each swap's time from the pump event timestamp
-	// (the "event" source). Override it for the other sources.
-	switch *blockTimeSource {
-	case "clock":
-		// Clock sysvar for this exact slot; null if we haven't seen it (no fallback).
-		if !exact && len(swaps) > 0 {
-			log.Printf("no clock time for slot %d; leaving block time null on %d swap(s)", tx.GetSlot(), len(swaps))
-		}
-		for _, swap := range swaps {
-			if exact {
-				unixTime := clockTime
-				humanTime := time.Unix(unixTime, 0).Format("2006-01-02T15:04:05")
-				swap.BlockUnixTime = &unixTime
-				swap.BlockHumanTime = &humanTime
-			} else {
-				swap.BlockUnixTime = nil
-				swap.BlockHumanTime = nil
-			}
-		}
-	case "server":
-		// created_at set by the geyser/gRPC server when it emitted this update.
-		var unixTime *int64
-		var humanTime *string
-		if ca := update.GetCreatedAt(); ca != nil {
-			t := ca.GetSeconds()
-			h := ca.AsTime().Format("2006-01-02T15:04:05")
-			unixTime, humanTime = &t, &h
-		}
-		for _, swap := range swaps {
-			swap.BlockUnixTime = unixTime
-			swap.BlockHumanTime = humanTime
-		}
-	}
+	applySwapTimes(swaps, clockTime, exact, serverEventMs, serverMs)
 
 	for _, swap := range swaps {
 		go send(mqttService, swap)
+	}
+}
+
+// handleBlock parses every pump_amm transaction inside a block update and
+// publishes the resulting swaps. Unlike the tx subscription, a block carries
+// its block_time directly, so the block time comes from there instead of the
+// Clock sysvar.
+func handleBlock(
+	update *laserstream.SubscribeUpdate,
+	block *pb.SubscribeUpdateBlock,
+	txService *TxService,
+	mqttService *MqttService,
+) {
+	var serverEventMs int64
+	if ca := update.GetCreatedAt(); ca != nil {
+		serverEventMs = ca.AsTime().UnixMilli()
+	}
+	serverMs := time.Now().UnixMilli()
+
+	var blockUnix int64
+	blockExact := block.GetBlockTime() != nil
+	if blockExact {
+		blockUnix = block.GetBlockTime().GetTimestamp()
+	}
+	if blockExact {
+		fmt.Printf("block %d clock delay %d ms, grpc delay %d ms, %d tx(s)\n", block.GetSlot(), serverMs-blockUnix*1000, serverMs-serverEventMs, len(block.GetTransactions()))
+	} else {
+		fmt.Printf("block %d clock delay unknown (no block_time), grpc delay %d ms, %d tx(s)\n", block.GetSlot(), serverMs-serverEventMs, len(block.GetTransactions()))
+	}
+
+	for _, txInfo := range block.GetTransactions() {
+		if meta := txInfo.GetMeta(); meta != nil && meta.GetErr() != nil {
+			continue // failed transaction
+		}
+		swaps, err := txService.parseTx(context.Background(), txInfo, block.GetSlot())
+		if err != nil {
+			log.Printf("Failed to parse transaction in block %d: %v", block.GetSlot(), err)
+			continue
+		}
+		applySwapTimes(swaps, blockUnix, blockExact, serverEventMs, serverMs)
+		for _, swap := range swaps {
+			go send(mqttService, swap)
+		}
+	}
+}
+
+// applySwapTimes stamps each swap with three times: the block time (Clock
+// sysvar in tx mode, block_time in block mode), the gRPC server's created_at,
+// and our local receive time. blockUnix is unix seconds; blockExact reports
+// whether it is known (block time is left null otherwise).
+func applySwapTimes(swaps []*SwapEvent, blockUnix int64, blockExact bool, serverEventMs, serverMs int64) {
+	for _, swap := range swaps {
+		swap.GrpcServerTime = serverEventMs
+		swap.ServerTime = serverMs
+
+		if blockExact {
+			unixTime := blockUnix
+			humanTime := time.Unix(unixTime, 0).Format("2006-01-02T15:04:05")
+			swap.BlockUnixTime = &unixTime
+			swap.BlockHumanTime = &humanTime
+		} else {
+			swap.BlockUnixTime = nil
+			swap.BlockHumanTime = nil
+		}
 	}
 }
 

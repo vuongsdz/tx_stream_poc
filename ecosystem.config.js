@@ -4,11 +4,11 @@
 //   go build -o tx_stream_clock_poc .
 //   pm2 start ecosystem.config.js
 //
-// One process per block-time source (clock, event, server), running side by
-// side for comparison. Values are hard-coded below — edit them directly.
+// One process per subscription mode (tx, block), running side by side for
+// comparison. Values are hard-coded below — edit them directly.
 //
 // Handy commands:
-//   pm2 logs tx_stream_clock_poc_clock    # tail one process
+//   pm2 logs tx_stream_clock_poc_tx       # tail one process
 //   pm2 logs                              # tail all
 //   pm2 restart all / pm2 stop all / pm2 delete all
 //   pm2 save && pm2 startup               # persist across reboots
@@ -31,24 +31,17 @@ module.exports = {
   apps: [
     {
       ...common,
-      name: "tx_stream_clock_poc_clock",
-      args: ["--endpoint", endpoint, "--block-time-source", "clock"],
-      out_file: "./logs/tx_stream_clock_poc_clock.out.log",
-      error_file: "./logs/tx_stream_clock_poc_clock.err.log",
+      name: "tx_stream_clock_poc_tx",
+      args: ["--endpoint", endpoint, "--sub-mode", "tx"],
+      out_file: "./logs/tx_stream_clock_poc_tx.out.log",
+      error_file: "./logs/tx_stream_clock_poc_tx.err.log",
     },
     {
       ...common,
-      name: "tx_stream_clock_poc_event",
-      args: ["--endpoint", endpoint, "--block-time-source", "event"],
-      out_file: "./logs/tx_stream_clock_poc_event.out.log",
-      error_file: "./logs/tx_stream_clock_poc_event.err.log",
-    },
-    {
-      ...common,
-      name: "tx_stream_clock_poc_server",
-      args: ["--endpoint", endpoint, "--block-time-source", "server"],
-      out_file: "./logs/tx_stream_clock_poc_server.out.log",
-      error_file: "./logs/tx_stream_clock_poc_server.err.log",
+      name: "tx_stream_clock_poc_block",
+      args: ["--endpoint", endpoint, "--sub-mode", "block"],
+      out_file: "./logs/tx_stream_clock_poc_block.out.log",
+      error_file: "./logs/tx_stream_clock_poc_block.err.log",
     },
   ],
 };
