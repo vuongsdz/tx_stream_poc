@@ -104,7 +104,7 @@ func buildSubscription() *laserstream.SubscribeRequest {
 			Account: []string{clockSysvarAddress},
 		},
 	}
-	commitment := pb.CommitmentLevel_CONFIRMED
+	commitment := pb.CommitmentLevel_PROCESSED
 	sub.Commitment = &commitment
 	return sub
 }
