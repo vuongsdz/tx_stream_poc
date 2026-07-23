@@ -22,7 +22,6 @@ var (
 	grpcAddr           = flag.String("endpoint", "", "Solana gRPC address, in URI format e.g. https://api.rpcpool.com")
 	token              = flag.String("x-token", "", "Token for authenticating")
 	insecureConnection = flag.Bool("insecure", false, "Connect without TLS")
-	noMqtt             = flag.Bool("no-mqtt", false, "Skip MQTT and print swaps to stdout (for local testing)")
 )
 
 var kacp = keepalive.ClientParameters{
@@ -127,6 +126,8 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 	subscription.Accounts["clock_sub"] = &pb.SubscribeRequestFilterAccounts{
 		Account: []string{clockSysvarAddress},
 	}
+	commitment := pb.CommitmentLevel_CONFIRMED
+	subscription.Commitment = &commitment
 
 	subscriptionJson, err := json.Marshal(&subscription)
 	if err != nil {
