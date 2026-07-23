@@ -126,7 +126,7 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 	subscription.Accounts["clock_sub"] = &pb.SubscribeRequestFilterAccounts{
 		Account: []string{clockSysvarAddress},
 	}
-	commitment := pb.CommitmentLevel_CONFIRMED
+	commitment := pb.CommitmentLevel_PROCESSED
 	subscription.Commitment = &commitment
 
 	subscriptionJson, err := json.Marshal(&subscription)
