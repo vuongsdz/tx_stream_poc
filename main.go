@@ -139,13 +139,21 @@ func handleUpdate(
 		return // failed transaction
 	}
 
+	// Always record the geyser/gRPC server's created_at and our local receive
+	// time (both unix millis), regardless of which block-time source is selected.
+	var serverEventMs int64
+	if ca := update.GetCreatedAt(); ca != nil {
+		serverEventMs = ca.AsTime().UnixMilli()
+	}
+	serverMs := time.Now().UnixMilli()
+
 	clockTime, exact := clockService.BlockTime(tx.GetSlot())
 	if *slot != tx.GetSlot() {
 		*slot = tx.GetSlot()
 		if exact {
-			fmt.Printf("slot %d delay %d ms \n", tx.GetSlot(), time.Now().UnixMilli()-clockTime*1000)
+			fmt.Printf("slot %d clock delay %d ms, grpc delay %d ms \n", tx.GetSlot(), serverMs-clockTime*1000, serverMs-serverEventMs)
 		} else {
-			fmt.Printf("slot %d delay unknown (no clock) \n", tx.GetSlot())
+			fmt.Printf("slot %d clock delay unknown (no clock), grpc delay %d ms \n", tx.GetSlot(), serverMs-serverEventMs)
 		}
 	}
 
@@ -155,13 +163,6 @@ func handleUpdate(
 		return
 	}
 
-	// Always record the geyser/gRPC server's created_at and our local receive
-	// time (both unix millis), regardless of which block-time source is selected.
-	var serverEventMs int64
-	if ca := update.GetCreatedAt(); ca != nil {
-		serverEventMs = ca.AsTime().UnixMilli()
-	}
-	serverMs := time.Now().UnixMilli()
 	for _, swap := range swaps {
 		swap.GrpcServerTime = serverEventMs
 		swap.ServerTime = serverMs
