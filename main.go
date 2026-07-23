@@ -21,6 +21,8 @@ var (
 	xToken   = flag.String("x-token", "", "Helius API key (alias for --api-key)")
 
 	subMode = flag.String("sub-mode", "tx", "Subscription mode: tx (stream individual transactions) or block (stream whole blocks and parse their transactions)")
+
+	commitment = flag.String("commitment", "confirmed", "Commitment level to subscribe at: processed or confirmed")
 )
 
 func main() {
@@ -43,6 +45,9 @@ func main() {
 	}
 	if *subMode != "tx" && *subMode != "block" {
 		log.Fatalf("--sub-mode must be 'tx' or 'block', got %q", *subMode)
+	}
+	if *commitment != "processed" && *commitment != "confirmed" {
+		log.Fatalf("--commitment must be 'processed' or 'confirmed', got %q", *commitment)
 	}
 
 	txService := NewTxService()
@@ -92,8 +97,11 @@ func main() {
 
 func buildSubscription() *laserstream.SubscribeRequest {
 	sub := &pb.SubscribeRequest{}
-	commitment := pb.CommitmentLevel_PROCESSED
-	sub.Commitment = &commitment
+	level := pb.CommitmentLevel_CONFIRMED
+	if *commitment == "processed" {
+		level = pb.CommitmentLevel_PROCESSED
+	}
+	sub.Commitment = &level
 
 	if *subMode == "block" {
 		// Stream whole blocks; the server filters each block's transactions down

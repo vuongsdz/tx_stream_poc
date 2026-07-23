@@ -4,14 +4,14 @@
 //   go build -o tx_stream_clock_poc .
 //   pm2 start ecosystem.config.js
 //
-// One process per subscription mode (tx, block), running side by side for
-// comparison. Values are hard-coded below — edit them directly.
+// One process per (subscription mode × commitment) combination, running side
+// by side for comparison. Values are hard-coded below — edit them directly.
 //
 // Handy commands:
-//   pm2 logs tx_stream_clock_poc_tx       # tail one process
-//   pm2 logs                              # tail all
+//   pm2 logs tx_stream_clock_poc_tx_confirmed   # tail one process
+//   pm2 logs                                    # tail all
 //   pm2 restart all / pm2 stop all / pm2 delete all
-//   pm2 save && pm2 startup               # persist across reboots
+//   pm2 save && pm2 startup                     # persist across reboots
 
 const endpoint = "http://10.0.0.250:10000";
 
@@ -31,17 +31,31 @@ module.exports = {
   apps: [
     {
       ...common,
-      name: "tx_stream_clock_poc_tx",
-      args: ["--endpoint", endpoint, "--sub-mode", "tx"],
-      out_file: "./logs/tx_stream_clock_poc_tx.out.log",
-      error_file: "./logs/tx_stream_clock_poc_tx.err.log",
+      name: "tx_stream_clock_poc_tx_processed",
+      args: ["--endpoint", endpoint, "--sub-mode", "tx", "--commitment", "processed"],
+      out_file: "./logs/tx_stream_clock_poc_tx_processed.out.log",
+      error_file: "./logs/tx_stream_clock_poc_tx_processed.err.log",
     },
     {
       ...common,
-      name: "tx_stream_clock_poc_block",
-      args: ["--endpoint", endpoint, "--sub-mode", "block"],
-      out_file: "./logs/tx_stream_clock_poc_block.out.log",
-      error_file: "./logs/tx_stream_clock_poc_block.err.log",
+      name: "tx_stream_clock_poc_tx_confirmed",
+      args: ["--endpoint", endpoint, "--sub-mode", "tx", "--commitment", "confirmed"],
+      out_file: "./logs/tx_stream_clock_poc_tx_confirmed.out.log",
+      error_file: "./logs/tx_stream_clock_poc_tx_confirmed.err.log",
+    },
+    {
+      ...common,
+      name: "tx_stream_clock_poc_block_processed",
+      args: ["--endpoint", endpoint, "--sub-mode", "block", "--commitment", "processed"],
+      out_file: "./logs/tx_stream_clock_poc_block_processed.out.log",
+      error_file: "./logs/tx_stream_clock_poc_block_processed.err.log",
+    },
+    {
+      ...common,
+      name: "tx_stream_clock_poc_block_confirmed",
+      args: ["--endpoint", endpoint, "--sub-mode", "block", "--commitment", "confirmed"],
+      out_file: "./logs/tx_stream_clock_poc_block_confirmed.out.log",
+      error_file: "./logs/tx_stream_clock_poc_block_confirmed.err.log",
     },
   ],
 };
