@@ -5,8 +5,8 @@ import (
 	"math"
 	"tx_stream_poc/pump_amm"
 
+	proto "github.com/helius-labs/laserstream-sdk/go/proto"
 	"github.com/mr-tron/base58"
-	"github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
 )
 
 type SwapInfo struct {

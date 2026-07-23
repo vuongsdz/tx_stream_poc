@@ -2,96 +2,34 @@ package main
 
 import (
 	"context"
-	"crypto/x509"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
-	"net/url"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
-	pb "github.com/rpcpool/yellowstone-grpc/examples/golang/proto"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/keepalive"
-	"google.golang.org/grpc/metadata"
+	laserstream "github.com/helius-labs/laserstream-sdk/go"
+	pb "github.com/helius-labs/laserstream-sdk/go/proto"
 )
 
 var (
-	grpcAddr           = flag.String("endpoint", "", "Solana gRPC address, in URI format e.g. https://api.rpcpool.com")
-	token              = flag.String("x-token", "", "Token for authenticating")
-	insecureConnection = flag.Bool("insecure", false, "Connect without TLS")
+	endpoint = flag.String("endpoint", "", "Helius LaserStream endpoint, e.g. https://laserstream-mainnet-tyo.helius-rpc.com")
+	apiKey   = flag.String("api-key", "", "Helius API key")
 )
-
-var kacp = keepalive.ClientParameters{
-	Time:                10 * time.Second, // send pings every 10 seconds if there is no activity
-	Timeout:             time.Second,      // wait 1 second for ping ack before considering the connection dead
-	PermitWithoutStream: true,             // send pings even without active streams
-}
 
 func main() {
 	log.SetFlags(0)
 	flag.Parse()
 
-	if *grpcAddr == "" {
-		log.Fatalf("GRPC address is required. Please provide --endpoint parameter.")
+	if *endpoint == "" {
+		log.Fatalf("--endpoint is required (Helius LaserStream endpoint)")
 	}
-
-	u, err := url.Parse(*grpcAddr)
-	if err != nil {
-		log.Fatalf("Invalid GRPC address provided: %v", err)
+	if *apiKey == "" {
+		log.Fatalf("--api-key is required (Helius API key)")
 	}
-
-	// Infer insecure connection if http is given
-	if u.Scheme == "http" {
-		*insecureConnection = true
-	}
-
-	port := u.Port()
-	if port == "" {
-		if *insecureConnection {
-			port = "80"
-		} else {
-			port = "443"
-		}
-	}
-	hostname := u.Hostname()
-	if hostname == "" {
-		log.Fatalf("Please provide URL format endpoint e.g. http(s)://<endpoint>:<port>")
-	}
-
-	address := hostname + ":" + port
-
-	conn := grpc_connect(address, *insecureConnection)
-	defer conn.Close()
-
-	grpc_subscribe(conn)
-}
-
-func grpc_connect(address string, plaintext bool) *grpc.ClientConn {
-	var opts []grpc.DialOption
-	if plaintext {
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	} else {
-		pool, _ := x509.SystemCertPool()
-		creds := credentials.NewClientTLSFromCert(pool, "")
-		opts = append(opts, grpc.WithTransportCredentials(creds))
-	}
-
-	opts = append(opts, grpc.WithKeepaliveParams(kacp))
-
-	log.Println("Starting grpc client, connecting to", address)
-	conn, err := grpc.NewClient(address, opts...)
-	if err != nil {
-		log.Fatalf("failed to connect: %v", err)
-	}
-
-	return conn
-}
-
-func grpc_subscribe(conn *grpc.ClientConn) {
-	var err error
 
 	txService := NewTxService()
 	clockService := NewClockService()
@@ -104,133 +42,131 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 	if err != nil {
 		panic(err)
 	}
-	if txService == nil || mqttService == nil {
+	defer mqttService.Close()
+
+	subscription := buildSubscription()
+	if subscriptionJson, err := json.Marshal(subscription); err == nil {
+		log.Printf("Subscription request: %s", string(subscriptionJson))
 	}
-	//atlService, err := NewATLService("https://patient-crimson-moon.solana-mainnet.quiknode.pro/")
-	//if err != nil {
-	//	panic(err)
-	//}
 
-	client := pb.NewGeyserClient(conn)
-	ctx := context.Background()
+	// The SDK owns the gRPC connection (tuned channel options) and reconnects
+	// in the background; we only supply callbacks.
+	client := laserstream.NewClient(laserstream.LaserstreamConfig{
+		Endpoint: *endpoint,
+		APIKey:   *apiKey,
+	})
 
-	var subscription pb.SubscribeRequest
-	subscription = pb.SubscribeRequest{}
-	subscription.Transactions = make(map[string]*pb.SubscribeRequestFilterTransactions)
-	subscription.Transactions["transactions_sub"] = &pb.SubscribeRequestFilterTransactions{
-		AccountInclude: []string{"pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"},
+	slot := uint64(1)
+	onData := func(update *laserstream.SubscribeUpdate) {
+		handleUpdate(update, txService, clockService, mqttService, &slot)
+	}
+	onError := func(err error) {
+		log.Printf("stream error: %v", err)
+	}
+
+	if err := client.Subscribe(subscription, onData, onError); err != nil {
+		log.Fatalf("subscribe: %v", err)
+	}
+	log.Println("Subscribed to Helius LaserStream; waiting for updates…")
+
+	// Block until interrupted; reconnection is handled by the SDK.
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	<-sig
+	client.Unsubscribe()
+}
+
+func buildSubscription() *laserstream.SubscribeRequest {
+	sub := &pb.SubscribeRequest{}
+	sub.Transactions = map[string]*pb.SubscribeRequestFilterTransactions{
+		"transactions_sub": {
+			AccountInclude: []string{"pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"},
+		},
 	}
 	// Stream the Clock sysvar so we know each slot's block time. It is rewritten
 	// once per slot; every account update on this filter is the Clock account.
-	subscription.Accounts = make(map[string]*pb.SubscribeRequestFilterAccounts)
-	subscription.Accounts["clock_sub"] = &pb.SubscribeRequestFilterAccounts{
-		Account: []string{clockSysvarAddress},
+	sub.Accounts = map[string]*pb.SubscribeRequestFilterAccounts{
+		"clock_sub": {
+			Account: []string{clockSysvarAddress},
+		},
 	}
 	commitment := pb.CommitmentLevel_PROCESSED
-	subscription.Commitment = &commitment
+	sub.Commitment = &commitment
+	return sub
+}
 
-	subscriptionJson, err := json.Marshal(&subscription)
+func handleUpdate(
+	update *laserstream.SubscribeUpdate,
+	txService *TxService,
+	clockService *ClockService,
+	mqttService *MqttService,
+	slot *uint64,
+) {
+	// Clock sysvar write: record this slot's block time and move on.
+	if acc := update.GetAccount(); acc != nil {
+		if info := acc.GetAccount(); info != nil {
+			clockService.Update(acc.GetSlot(), info.GetData())
+		}
+		return
+	}
+
+	tx := update.GetTransaction()
+	if tx == nil {
+		// Ping/pong keepalive or another update type we didn't subscribe to.
+		return
+	}
+	info := tx.GetTransaction()
+	if info == nil {
+		return
+	}
+
+	meta := info.GetMeta()
+	if meta != nil && meta.GetErr() != nil {
+		return // failed transaction
+	}
+
+	// Block time comes only from the Clock sysvar for this exact slot.
+	// If we haven't seen it yet, leave the fields null — no fallback.
+	clockTime, exact := clockService.BlockTime(tx.GetSlot())
+	if *slot != tx.GetSlot() {
+		*slot = tx.GetSlot()
+		if exact {
+			fmt.Printf("slot %d delay %d ms \n", tx.GetSlot(), time.Now().UnixMilli()-clockTime*1000)
+		} else {
+			fmt.Printf("slot %d delay unknown (no clock) \n", tx.GetSlot())
+		}
+	}
+
+	swaps, err := txService.parse(context.Background(), update)
 	if err != nil {
-		log.Printf("Failed to marshal subscription request: %v", subscriptionJson)
-	}
-	log.Printf("Subscription request: %s", string(subscriptionJson))
-
-	// Set up the subscription request
-	if *token != "" {
-		md := metadata.New(map[string]string{"x-token": *token})
-		ctx = metadata.NewOutgoingContext(ctx, md)
+		log.Printf("Failed to parse transaction: %v", err)
+		return
 	}
 
-	stream, err := client.Subscribe(ctx)
-	if err != nil {
-		log.Fatalf("%v", err)
+	if !exact && len(swaps) > 0 {
+		log.Printf("no clock time for slot %d; leaving block time null on %d swap(s)", tx.GetSlot(), len(swaps))
 	}
-	err = stream.Send(&subscription)
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
-
-	slot := uint64(1)
-
-	for {
-		update, err := stream.Recv()
-		if err != nil {
-			log.Fatalf("stream error: %v", err)
+	for _, swap := range swaps {
+		if exact {
+			unixTime := clockTime
+			humanTime := time.Unix(unixTime, 0).Format("2006-01-02T15:04:05")
+			swap.BlockUnixTime = &unixTime
+			swap.BlockHumanTime = &humanTime
 		}
-
-		// Clock sysvar write: record this slot's block time and move on.
-		if acc := update.GetAccount(); acc != nil {
-			if info := acc.GetAccount(); info != nil {
-				clockService.Update(acc.GetSlot(), info.GetData())
-			}
-			continue
-		}
-
-		tx := update.GetTransaction()
-		if tx == nil {
-			// Could be a ping/pong keepalive or another update type we
-			// didn't subscribe to; ignore.
-			continue
-		}
-
-		info := tx.GetTransaction()
-		if info == nil {
-			continue
-		}
-
-		//sig := base58.Encode(info.GetSignature())
-		meta := info.GetMeta()
-
-		failed := meta != nil && meta.GetErr() != nil
-		//status := "success"
-		//if failed {
-		//	status = "failed"
-		//}
-
-		if !failed {
-			// Block time comes only from the Clock sysvar for this exact slot.
-			// If we haven't seen it yet, leave the fields null — no fallback.
-			clockTime, exact := clockService.BlockTime(tx.GetSlot())
-			if slot != tx.GetSlot() {
-				slot = tx.GetSlot()
-				if exact {
-					fmt.Printf("slot %d delay %d ms \n", tx.GetSlot(), time.Now().UnixMilli()-clockTime*1000)
-				} else {
-					fmt.Printf("slot %d delay unknown (no clock) \n", tx.GetSlot())
-				}
-			}
-			swaps, err := txService.parse(ctx, update)
-			if err != nil {
-				log.Fatalf("Failed to parse transaction: %v", err)
-			}
-
-			if !exact && len(swaps) > 0 {
-				log.Printf("no clock time for slot %d; leaving block time null on %d swap(s)", tx.GetSlot(), len(swaps))
-			}
-			for _, swap := range swaps {
-				if exact {
-					unixTime := clockTime
-					humanTime := time.Unix(unixTime, 0).Format("2006-01-02T15:04:05")
-					swap.BlockUnixTime = &unixTime
-					swap.BlockHumanTime = &humanTime
-				}
-				go send(mqttService, swap)
-			}
-		}
+		go send(mqttService, swap)
 	}
 }
 
 func send(mqttService *MqttService, swap *SwapEvent) {
 	bytes, err := json.Marshal([]*SwapEvent{swap})
 	if err != nil {
-		log.Fatalf("Failed to marshal swap event: %v", err)
+		log.Printf("Failed to marshal swap event: %v", err)
+		return
 	}
-	err = mqttService.Publish("emqx-cluster", "subscribe_txs_test/solana/"+swap.Base.Address, bytes)
-	if err != nil {
-		log.Fatalf("Failed to publish message: %v", err)
+	if err := mqttService.Publish("emqx-cluster", "subscribe_txs_test/solana/"+swap.Base.Address, bytes); err != nil {
+		log.Printf("Failed to publish message: %v", err)
 	}
-	err = mqttService.Publish("emqx-cluster", "subscribe_txs_test/solana/"+swap.Quote.Address, bytes)
-	if err != nil {
-		log.Fatalf("Failed to publish message: %v", err)
+	if err := mqttService.Publish("emqx-cluster", "subscribe_txs_test/solana/"+swap.Quote.Address, bytes); err != nil {
+		log.Printf("Failed to publish message: %v", err)
 	}
 }

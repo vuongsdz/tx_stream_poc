@@ -7,11 +7,10 @@ require (
 	github.com/gagliardetto/anchor-go v0.3.2
 	github.com/gagliardetto/binary v0.8.0
 	github.com/gagliardetto/solana-go v1.12.0
+	github.com/helius-labs/laserstream-sdk/go v0.1.4
 	github.com/mr-tron/base58 v1.3.0
 	github.com/redis/go-redis/v9 v9.21.0
-	github.com/rpcpool/yellowstone-grpc/examples/golang v0.0.0-20260715142744-85851bf8fab8
 	golang.org/x/sync v0.20.0
-	google.golang.org/grpc v1.82.1
 )
 
 require (
@@ -21,7 +20,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/gagliardetto/treeout v0.1.4 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
@@ -44,5 +43,6 @@ require (
 	golang.org/x/term v0.42.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/grpc v1.82.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )

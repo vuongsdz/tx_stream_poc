@@ -4,8 +4,8 @@
 //   go build -o tx_stream_clock_poc .
 //   pm2 start ecosystem.config.js
 //
-// Override the endpoint/token without editing this file:
-//   GRPC_ENDPOINT=https://your-endpoint:443 X_TOKEN=xxx pm2 start ecosystem.config.js
+// Override the endpoint/key without editing this file:
+//   LASERSTREAM_ENDPOINT=https://laserstream-mainnet-tyo.helius-rpc.com HELIUS_API_KEY=xxx pm2 start ecosystem.config.js
 //
 // Handy commands:
 //   pm2 logs tx_stream_clock_poc      # tail logs
@@ -14,12 +14,14 @@
 //   pm2 delete tx_stream_clock_poc    # remove from PM2
 //   pm2 save && pm2 startup           # persist across reboots
 
-const endpoint = process.env.GRPC_ENDPOINT || "https://your-grpc-endpoint:443";
-const xToken = process.env.X_TOKEN || "";
+const endpoint =
+  process.env.LASERSTREAM_ENDPOINT ||
+  "https://laserstream-mainnet-tyo.helius-rpc.com";
+const apiKey = process.env.HELIUS_API_KEY || "";
 
 const args = ["--endpoint", endpoint];
-if (xToken) {
-  args.push("--x-token", xToken);
+if (apiKey) {
+  args.push("--api-key", apiKey);
 }
 
 module.exports = {
