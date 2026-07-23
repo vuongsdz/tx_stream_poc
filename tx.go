@@ -508,8 +508,9 @@ type SwapEvent struct {
 	TxHash                 string             `json:"txHash"`
 	Slot                   uint64             `json:"slot"`
 	Source                 string             `json:"source"`
-	BlockUnixTime          *int64             `json:"blockUnixTime"`  // null when no Clock for the slot
-	BlockHumanTime         *string            `json:"blockHumanTime"` // null when no Clock for the slot
+	BlockUnixTime          *int64             `json:"blockUnixTime"`       // null when no Clock for the slot
+	BlockHumanTime         *string            `json:"blockHumanTime"`      // null when no Clock for the slot
+	GrpcServerEventTime    int64              `json:"grpcServerEventTime"` // geyser/gRPC server created_at, unix millis (0 if absent)
 
 	TxType                 string             `json:"txType"`
 	Address                string             `json:"address"` // pool/market address

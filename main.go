@@ -155,6 +155,16 @@ func handleUpdate(
 		return
 	}
 
+	// Always record the geyser/gRPC server's created_at (unix millis) for
+	// comparison, regardless of which block-time source is selected.
+	var serverEventMs int64
+	if ca := update.GetCreatedAt(); ca != nil {
+		serverEventMs = ca.AsTime().UnixMilli()
+	}
+	for _, swap := range swaps {
+		swap.GrpcServerEventTime = serverEventMs
+	}
+
 	// parse() has already set each swap's time from the pump event timestamp
 	// (the "event" source). Override it for the other sources.
 	switch *blockTimeSource {
