@@ -188,18 +188,22 @@ func grpc_subscribe(conn *grpc.ClientConn) {
 		//}
 
 		if !failed {
+			// Block time comes only from the Clock sysvar for this exact slot.
+			// If we haven't seen it yet, leave the fields null — no fallback.
+			clockTime, exact := clockService.BlockTime(tx.GetSlot())
 			if slot != tx.GetSlot() {
 				slot = tx.GetSlot()
-				fmt.Printf("slot %d delay %d \n", tx.GetSlot(), update.CreatedAt.GetSeconds()-time.Now().Unix())
+				if exact {
+					fmt.Printf("slot %d delay %d ms \n", tx.GetSlot(), time.Now().UnixMilli()-clockTime*1000)
+				} else {
+					fmt.Printf("slot %d delay unknown (no clock) \n", tx.GetSlot())
+				}
 			}
 			swaps, err := txService.parse(ctx, update)
 			if err != nil {
 				log.Fatalf("Failed to parse transaction: %v", err)
 			}
 
-			// Block time comes only from the Clock sysvar for this exact slot.
-			// If we haven't seen it yet, leave the fields null — no fallback.
-			clockTime, exact := clockService.BlockTime(tx.GetSlot())
 			if !exact && len(swaps) > 0 {
 				log.Printf("no clock time for slot %d; leaving block time null on %d swap(s)", tx.GetSlot(), len(swaps))
 			}
