@@ -18,17 +18,24 @@ import (
 var (
 	endpoint = flag.String("endpoint", "", "Helius LaserStream endpoint, e.g. https://laserstream-mainnet-tyo.helius-rpc.com")
 	apiKey   = flag.String("api-key", "", "Helius API key")
+	xToken   = flag.String("x-token", "", "Helius API key (alias for --api-key)")
 )
 
 func main() {
 	log.SetFlags(0)
 	flag.Parse()
 
+	// Accept the key from either flag; --x-token is kept for backward compat.
+	key := *apiKey
+	if key == "" {
+		key = *xToken
+	}
+
 	if *endpoint == "" {
 		log.Fatalf("--endpoint is required (Helius LaserStream endpoint)")
 	}
-	if *apiKey == "" {
-		log.Fatalf("--api-key is required (Helius API key)")
+	if key == "" {
+		log.Fatalf("--api-key (or --x-token) is required (Helius API key)")
 	}
 
 	txService := NewTxService()
@@ -53,7 +60,7 @@ func main() {
 	// in the background; we only supply callbacks.
 	client := laserstream.NewClient(laserstream.LaserstreamConfig{
 		Endpoint: *endpoint,
-		APIKey:   *apiKey,
+		APIKey:   key,
 	})
 
 	slot := uint64(1)

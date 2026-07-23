@@ -21,7 +21,7 @@ const apiKey = process.env.X_TOKEN || ""; // Helius API key
 
 const args = ["--endpoint", endpoint];
 if (apiKey) {
-  args.push("--api-key", apiKey);
+  args.push("--x-token", apiKey);
 }
 
 module.exports = {
