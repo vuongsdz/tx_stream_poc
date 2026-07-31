@@ -24,6 +24,7 @@ const kafkaBrokers = "10.0.0.230:19092,10.0.0.231:19092,10.0.0.232:19092"; // TO
 //   mongodb://<user>:<pass>@10.0.0.29:27017/stream?authSource=admin
 const mongoUri = "mongodb://<user>:<pass>@10.0.0.29:27017/stream?authSource=admin"; // TODO: set real Mongo credentials
 const kafkaTopic = "block_obs";
+const txTopic = "txvsblock_obs";
 
 const common = {
   script: "./tx_stream_clock_poc", // the compiled Go binary
@@ -90,6 +91,30 @@ module.exports = {
       ],
       out_file: "./logs/blockobserver.out.log",
       error_file: "./logs/blockobserver.err.log",
+    },
+    {
+      ...common,
+      script: "./txvsblock",
+      name: "txvsblock",
+      args: [
+        "--endpoint", endpoint,
+        "--kafka-brokers", kafkaBrokers,
+        "--kafka-topic", txTopic,
+      ],
+      out_file: "./logs/txvsblock.out.log",
+      error_file: "./logs/txvsblock.err.log",
+    },
+    {
+      ...common,
+      script: "./txvsblockobserver",
+      name: "txvsblockobserver",
+      args: [
+        "--kafka-brokers", kafkaBrokers,
+        "--kafka-topic", txTopic,
+        "--mongo-uri", mongoUri,
+      ],
+      out_file: "./logs/txvsblockobserver.out.log",
+      error_file: "./logs/txvsblockobserver.err.log",
     },
   ],
 };

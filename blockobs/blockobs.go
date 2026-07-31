@@ -15,8 +15,11 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-// DefaultTopic is the Kafka topic both jobs default to.
+// DefaultTopic is the Kafka topic the block-compare jobs default to.
 const DefaultTopic = "block_obs"
+
+// DefaultTxTopic is the Kafka topic the tx-vs-block jobs default to.
+const DefaultTxTopic = "txvsblock_obs"
 
 // Observation is one block sighting at one commitment.
 type Observation struct {
@@ -26,6 +29,17 @@ type Observation struct {
 	RecvMs     int64  `json:"recvMs"`     // local receive time, unix millis
 	GrpcMs     int64  `json:"grpcMs"`     // gRPC created_at, unix millis (0 if absent)
 	TxCount    uint64 `json:"txCount"`    // executed_transaction_count reported by the block
+}
+
+// TxObs is one transaction sighting from a given subscription source. The
+// tx-vs-block jobs emit these keyed by signature so the tx subscription and the
+// block subscription can be compared per-transaction.
+type TxObs struct {
+	Signature string `json:"signature"`
+	Source    string `json:"source"` // "tx" | "block"
+	Slot      uint64 `json:"slot"`
+	RecvMs    int64  `json:"recvMs"` // local receive time, unix millis
+	GrpcMs    int64  `json:"grpcMs"` // gRPC created_at, unix millis (0 if absent)
 }
 
 // Producer writes observations to Kafka, keyed by slot so all sightings of one
@@ -52,12 +66,22 @@ func NewProducer(brokers []string, topic string) *Producer {
 }
 
 func (p *Producer) Publish(obs *Observation) error {
-	b, err := json.Marshal(obs)
+	return p.PublishKV(strconv.FormatUint(obs.Slot, 10), obs)
+}
+
+// PublishTx emits a TxObs keyed by signature.
+func (p *Producer) PublishTx(obs *TxObs) error {
+	return p.PublishKV(obs.Signature, obs)
+}
+
+// PublishKV marshals v to JSON and writes it under key.
+func (p *Producer) PublishKV(key string, v any) error {
+	b, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
 	return p.w.WriteMessages(context.Background(), kafka.Message{
-		Key:   []byte(strconv.FormatUint(obs.Slot, 10)),
+		Key:   []byte(key),
 		Value: b,
 	})
 }
