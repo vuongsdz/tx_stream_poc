@@ -25,6 +25,7 @@ type Observation struct {
 	Commitment string `json:"commitment"` // "processed" | "confirmed"
 	RecvMs     int64  `json:"recvMs"`     // local receive time, unix millis
 	GrpcMs     int64  `json:"grpcMs"`     // gRPC created_at, unix millis (0 if absent)
+	TxCount    uint64 `json:"txCount"`    // executed_transaction_count reported by the block
 }
 
 // Producer writes observations to Kafka, keyed by slot so all sightings of one

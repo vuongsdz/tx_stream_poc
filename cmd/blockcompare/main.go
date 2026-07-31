@@ -48,6 +48,7 @@ func main() {
 			Slot:       block.GetSlot(),
 			Commitment: commitment,
 			RecvMs:     time.Now().UnixMilli(),
+			TxCount:    block.GetExecutedTransactionCount(),
 		}
 		if bt := block.GetBlockTime(); bt != nil {
 			obs.BlockTime = bt.GetTimestamp()

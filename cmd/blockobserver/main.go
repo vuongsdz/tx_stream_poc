@@ -98,8 +98,9 @@ func main() {
 			"$set": bson.M{
 				"blockTime": obs.BlockTime,
 				obs.Commitment: bson.M{
-					"recvMs": obs.RecvMs,
-					"grpcMs": obs.GrpcMs,
+					"recvMs":  obs.RecvMs,
+					"grpcMs":  obs.GrpcMs,
+					"txCount": obs.TxCount,
 				},
 			},
 		}
