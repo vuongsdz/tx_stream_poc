@@ -16,4 +16,10 @@ go build -o blockcompare ./cmd/blockcompare
 echo "building blockobserver…"
 go build -o blockobserver ./cmd/blockobserver
 
+echo "building txvsblock…"
+go build -o txvsblock ./cmd/txvsblock
+
+echo "building txvsblockobserver…"
+go build -o txvsblockobserver ./cmd/txvsblockobserver
+
 echo "done."
