@@ -20,7 +20,7 @@
 
 const endpoint = "http://10.0.0.250:10000";
 const kafkaBrokers = "10.0.0.230:19092,10.0.0.231:19092,10.0.0.232:19092"; // TODO: set real Kafka broker(s)
-const mongoUri = "mongodb://10.0.0.29:27017"; // TODO: set real Mongo URI
+const mongoUri = "mongodb://10.0.0.29:27017/stream"; // TODO: set real Mongo URI
 const kafkaTopic = "block_obs";
 
 const common = {
