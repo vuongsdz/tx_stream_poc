@@ -100,39 +100,43 @@ func main() {
 		}
 	}
 
+	// Both filters share one SubscribeRequest (same connection, same commitment)
+	// so tx and block updates arrive on the same stream — the fair way to compare
+	// arrival time without cross-connection jitter.
 	confirmed := pb.CommitmentLevel_CONFIRMED
-	txSub := &pb.SubscribeRequest{
+	includeTx := true
+	sub := &pb.SubscribeRequest{
 		Transactions: map[string]*pb.SubscribeRequestFilterTransactions{
 			"tx_sub": {AccountInclude: []string{*account}},
 		},
-		Commitment: &confirmed,
-	}
-	includeTx := true
-	blockSub := &pb.SubscribeRequest{
 		Blocks: map[string]*pb.SubscribeRequestFilterBlocks{
 			"block_sub": {AccountInclude: []string{*account}, IncludeTransactions: &includeTx},
 		},
 		Commitment: &confirmed,
 	}
 
+	// One callback dispatches by update type.
+	onData := func(u *laserstream.SubscribeUpdate) {
+		if u.GetTransaction() != nil {
+			onTx(u)
+			return
+		}
+		if u.GetBlock() != nil {
+			onBlock(u)
+		}
+	}
 	onError := func(err error) { log.Printf("stream error: %v", err) }
 
-	clientTx := laserstream.NewClient(laserstream.LaserstreamConfig{Endpoint: *endpoint, APIKey: *apiKey})
-	clientBlock := laserstream.NewClient(laserstream.LaserstreamConfig{Endpoint: *endpoint, APIKey: *apiKey})
-
-	if err := clientTx.Subscribe(txSub, onTx, onError); err != nil {
-		log.Fatalf("subscribe tx: %v", err)
+	client := laserstream.NewClient(laserstream.LaserstreamConfig{Endpoint: *endpoint, APIKey: *apiKey})
+	if err := client.Subscribe(sub, onData, onError); err != nil {
+		log.Fatalf("subscribe: %v", err)
 	}
-	if err := clientBlock.Subscribe(blockSub, onBlock, onError); err != nil {
-		log.Fatalf("subscribe block: %v", err)
-	}
-	log.Println("txvsblock: streaming confirmed tx + block subscriptions → Kafka…")
+	log.Println("txvsblock: streaming confirmed tx + block on one connection → Kafka…")
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
-	clientTx.Unsubscribe()
-	clientBlock.Unsubscribe()
+	client.Unsubscribe()
 }
 
 func splitCSV(s string) []string {
