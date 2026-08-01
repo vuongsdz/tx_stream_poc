@@ -22,4 +22,10 @@ go build -o txvsblock ./cmd/txvsblock
 echo "building txvsblockobserver…"
 go build -o txvsblockobserver ./cmd/txvsblockobserver
 
+echo "building txcompare…"
+go build -o txcompare ./cmd/txcompare
+
+echo "building txcompareobserver…"
+go build -o txcompareobserver ./cmd/txcompareobserver
+
 echo "done."

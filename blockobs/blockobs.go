@@ -21,6 +21,10 @@ const DefaultTopic = "block_obs"
 // DefaultTxTopic is the Kafka topic the tx-vs-block jobs default to.
 const DefaultTxTopic = "txvsblock_obs"
 
+// DefaultTxCompareTopic is the Kafka topic the tx processed-vs-confirmed jobs
+// default to.
+const DefaultTxCompareTopic = "txcompare_obs"
+
 // Observation is one block sighting at one commitment.
 type Observation struct {
 	Slot       uint64 `json:"slot"`
